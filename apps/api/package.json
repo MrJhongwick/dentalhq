@@ -1,0 +1,19 @@
+{
+  "name": "@dentalhq/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --format=esm --platform=neutral --outdir=dist",
+    "dev": "node --watch --import tsx src/dev.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "latest",
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "esbuild": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@dentalhq/landing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --port 4321"
+  },
+  "dependencies": {
+    "astro": "latest"
+  }
+}
