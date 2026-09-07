@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
-    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --port 4321"
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --port 3000"
   },
   "dependencies": {
     "astro": "latest"

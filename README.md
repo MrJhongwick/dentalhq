@@ -29,10 +29,10 @@ The development servers print their local URLs. The dashboard is available at
 
 | Application | Root command | Local URL |
 | --- | --- | --- |
-| Landing | `pnpm dev:landing` | `http://localhost:4321` |
-| API | `pnpm dev:api` | `http://localhost:8787` |
-| Dashboard | `pnpm dev:dashboard` | `http://localhost:5173` |
-| Booking | `pnpm dev:dashboard` | `http://localhost:5173/booking` |
-| Console | `pnpm dev:console` | `http://localhost:5174` |
+| Landing | `pnpm dev:landing` | `http://localhost:3000` |
+| API | `pnpm dev:api` | `http://localhost:3003` |
+| Dashboard | `pnpm dev:dashboard` | `http://localhost:3001` |
+| Booking | `pnpm dev:dashboard` | `http://localhost:3001/booking` |
+| Console | `pnpm dev:console` | `http://localhost:3002` |
 
 The root `pnpm-lock.yaml` is the repository's only lockfile.
