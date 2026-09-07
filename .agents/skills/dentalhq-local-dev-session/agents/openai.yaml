@@ -1,0 +1,3 @@
+interface:
+  display_name: "DentalHQ Local Dev Session"
+  short_description: "Run the four core DentalHQ apps in one reusable session"
