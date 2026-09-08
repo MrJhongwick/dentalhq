@@ -15,7 +15,7 @@ export async function seedDevelopment(db: Database, password: string) {
   });
   const owner = await provisionUser(
     db,
-    { name: "Demo clinic owner", email: "owner@example.test", password },
+    { name: "Maya Kim", email: "owner@example.test", password },
     operator.id,
   );
   const staff = await provisionUser(
@@ -32,7 +32,7 @@ export async function seedDevelopment(db: Database, password: string) {
     otherClinicId = randomUUID();
   await db.transaction(async (tx) => {
     await tx.insert(schema.clinics).values([
-      { id: clinicId, name: "Sample Dental", slug: "sample-dental" },
+      { id: clinicId, name: "Harbor Dental", slug: "harbor-dental" },
       { id: otherClinicId, name: "Other Dental", slug: "other-dental" },
     ]);
     await tx.insert(schema.memberships).values([

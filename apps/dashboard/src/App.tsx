@@ -1,347 +1,89 @@
-import { useEffect, useState, type FormEvent } from "react";
-import {
-  identitySchema,
-  clinicSchema,
-  auditListSchema,
-  type Identity,
-  type Clinic,
-  type Audit,
-} from "@dentalhq/contracts";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { identitySchema, clinicSchema, auditListSchema, type Identity, type Clinic, type Audit } from "@dentalhq/contracts";
+import { Bell, CalendarDays, Check, ChevronDown, ClipboardCheck, Clock3, Eye, EyeOff, Inbox, LockKeyhole, Mail, Menu, MessageSquareText, Search, Settings, ShieldCheck, Sparkles, Stethoscope, UserRound, UsersRound, X } from "lucide-react";
 import { api, ApiError } from "./api";
 import "./style.css";
 
+type View = "today" | "appointments" | "patients" | "inbox" | "settings";
+type QueueItem = { id: string; status: "Urgent" | "Pending" | "New" | "Opportunity"; title: string; detail: string; owner: string; timing: string; action: string; icon: typeof CalendarDays };
+
+const demoQueue: QueueItem[] = [
+  { id: "requests", status: "Urgent", title: "3 booking requests", detail: "New requests are waiting for a time and staff review.", owner: "You · Front Desk", timing: "Due now", action: "Review requests", icon: CalendarDays },
+  { id: "forms", status: "Pending", title: "2 forms due today", detail: "Two patients have not completed their pre-visit forms.", owner: "You · Front Desk", timing: "By 12:00 PM", action: "Follow up", icon: ClipboardCheck },
+  { id: "reply", status: "New", title: "1 patient reply", detail: "A patient replied to the clinic's appointment message.", owner: "You · Front Desk", timing: "By 1:00 PM", action: "View reply", icon: MessageSquareText },
+  { id: "opening", status: "Opportunity", title: "Open chair at 2:30 PM", detail: "A cancellation created an opening in today's schedule.", owner: "Front Desk", timing: "Time-sensitive", action: "Find a patient", icon: Sparkles },
+];
+
+const navItems: { id: View; label: string; icon: typeof CalendarDays; badge?: number }[] = [
+  { id: "today", label: "Today", icon: CalendarDays }, { id: "appointments", label: "Appointments", icon: Clock3 }, { id: "patients", label: "Patients", icon: UsersRound }, { id: "inbox", label: "Inbox", icon: Inbox, badge: 1 }, { id: "settings", label: "Settings", icon: Settings },
+];
+
+function Brand() {
+  return <a className="wordmark" href="/" aria-label="DentalHQ home"><span className="brand-mark" aria-hidden="true"><Stethoscope size={21} /></span><span>DentalHQ</span></a>;
+}
+
+function LoginScreen({ busy, error, onSubmit, onRetry }: { busy: boolean; error: string; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onRetry: () => void }) {
+  const [showPassword, setShowPassword] = useState(false);
+  return <main className="login-page">
+    <section className="login-story" aria-labelledby="login-story-title"><div className="story-orbit orbit-one" aria-hidden="true" /><div className="story-orbit orbit-two" aria-hidden="true" /><Brand /><div className="story-copy"><p className="eyebrow">A calmer clinic workspace</p><h1 id="login-story-title">Your clinic day,<br />clearly organized.</h1><p className="story-intro">Coordinate scheduling, patients, and your clinic team from one dependable place.</p><ul className="benefit-list"><li><span><Clock3 /></span><div><strong>Save time</strong><small>Keep the day's priorities visible.</small></div></li><li><span><UsersRound /></span><div><strong>Work together</strong><small>Know who owns every next step.</small></div></li><li><span><Sparkles /></span><div><strong>Deliver great care</strong><small>Spend less time chasing details.</small></div></li></ul></div><p className="story-footer">Built for independent dental teams.</p></section>
+    <section className="login-form-zone"><div className="mobile-brand"><Brand /></div><div className="login-card"><div className="login-card-heading"><span className="secure-icon" aria-hidden="true"><ShieldCheck /></span><div><h2>Sign in to your clinic</h2><p>Welcome back. Your clinic day is ready.</p></div></div>{error ? <div className="alert error" role="alert"><span>{error}</span>{error.includes("Cannot reach") ? <button type="button" onClick={onRetry}>Retry</button> : null}</div> : null}<form className="login-form" onSubmit={onSubmit}><label>Email address<div className="input-wrap"><Mail aria-hidden="true" /><input name="email" type="email" autoComplete="username" placeholder="you@clinic.com" required /></div></label><label>Password<div className="input-wrap"><LockKeyhole aria-hidden="true" /><input name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" required /><button className="reveal-button" type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff /> : <Eye />}</button></div></label><button className="primary-button sign-in-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button></form><div className="secure-copy"><LockKeyhole aria-hidden="true" /><span><strong>Secure access for your clinic team</strong><small>Your account is protected and private.</small></span></div><p className="support-copy">Need help? Contact your DentalHQ administrator.</p></div><p className="login-legal">By signing in, you agree to use DentalHQ only for authorized clinic work.</p></section>
+  </main>;
+}
+
+function LoadingScreen() {
+  return <main className="app-shell loading-shell" aria-busy="true"><aside className="sidebar"><Brand /><div className="skeleton skeleton-clinic" />{[1,2,3,4,5].map((item) => <div className="skeleton skeleton-nav" key={item} />)}</aside><section className="workspace" role="status" aria-label="Loading your workspace"><div className="skeleton skeleton-heading" /><div className="skeleton skeleton-copy" /><div className="skeleton skeleton-panel" /></section></main>;
+}
+
+type SettingsProps = { clinic: Clinic; identity: Identity; events: Audit[]; busy: boolean; notice: string; role: "owner" | "manager" | "staff" | undefined; submit: (event: FormEvent<HTMLFormElement>, operation: (form: FormData) => Promise<void>) => void; setClinic: (clinic: Clinic) => void; setEvents: (events: Audit[]) => void; setNotice: (notice: string) => void };
+function SettingsView({ clinic, identity, events, busy, notice, role, submit, setClinic, setEvents, setNotice }: SettingsProps) {
+  return <div className="settings-page"><div className="section-heading"><div><p className="eyebrow">Clinic administration</p><h1>Settings</h1><p>Manage the active clinic without leaving your daily workspace.</p></div></div>{notice ? <p className="alert success" role="status">{notice}</p> : null}<div className="settings-grid">
+    <section className="panel"><h2>Clinic configuration</h2><p className="muted">Signed in as {identity.user.email} · {role}</p>{role === "staff" ? <div className="permission-note"><ShieldCheck /><p><strong>Read-only access</strong><br />Only owners and managers can change clinic settings.</p></div> : <form onSubmit={(event) => submit(event, async (form) => { setClinic(clinicSchema.parse(await api(`/clinics/${clinic.id}`, "PATCH", { timezone: form.get("timezone"), bookingEnabled: form.get("bookingEnabled") === "on" }))); setEvents(auditListSchema.parse(await api(`/clinics/${clinic.id}/audit`))); setNotice("Settings saved and recorded in audit history."); })}><label>Timezone<input name="timezone" defaultValue={clinic.timezone} required /></label><label className="checkbox-label"><input name="bookingEnabled" type="checkbox" defaultChecked={clinic.bookingEnabled} />Booking configuration flag</label><p className="field-help">This flag does not activate the patient booking workflow yet.</p><button className="primary-button" disabled={busy}>Save settings</button></form>}</section>
+    {role === "owner" ? <section className="panel"><h2>Team access</h2><p className="muted">Assign a provisioned account to this clinic.</p><form onSubmit={(event) => submit(event, async (form) => { await api(`/clinics/${clinic.id}/members`, "PUT", { email: form.get("email"), role: form.get("role") }); setNotice("Team access updated and recorded in audit history."); setEvents(auditListSchema.parse(await api(`/clinics/${clinic.id}/audit`))); })}><label>Account email<input name="email" type="email" required /></label><label>Role<select name="role"><option value="staff">Staff</option><option value="manager">Manager</option></select></label><button className="primary-button" disabled={busy}>Save team access</button></form><details><summary>Revoke team access</summary><form onSubmit={(event) => submit(event, async (form) => { await api(`/clinics/${clinic.id}/members`, "DELETE", { email: form.get("email") }); setNotice("Team access revoked and recorded in audit history."); setEvents(auditListSchema.parse(await api(`/clinics/${clinic.id}/audit`))); })}><label>Member email to remove<input name="email" type="email" required /></label><button className="danger-button" disabled={busy}>Revoke clinic access</button></form></details></section> : null}
+  </div><section className="panel audit-panel"><h2>Audit history</h2>{events.length === 0 ? <p className="empty-copy">No recorded changes yet.</p> : <ul className="audit-list">{events.map((event) => <li key={event.id}><span className="audit-dot" /><div><strong>{event.action}</strong><small>{new Date(event.createdAt).toLocaleString()}</small></div></li>)}</ul>}</section></div>;
+}
+
+function TodayView({ isDemo, completed, query, completeItem, firstName, clinicName, onAppointments }: { isDemo: boolean; completed: string[]; query: string; completeItem: (item: QueueItem) => void; firstName: string; clinicName: string; onAppointments: () => void }) {
+  const queue = useMemo(() => demoQueue.filter((item) => !completed.includes(item.id) && `${item.title} ${item.detail} ${item.status}`.toLowerCase().includes(query.toLowerCase())), [completed, query]);
+  const searchedEmpty = isDemo && query.length > 0 && queue.length === 0;
+  return <><div className="section-heading dashboard-greeting"><div><p className="eyebrow">Tuesday, September 8</p><h1>Good morning, {firstName}.</h1><p>Here is what needs your attention at {clinicName} today.</p></div><div className="date-chip"><CalendarDays /><span><strong>Tuesday</strong><small>September 8</small></span></div></div><div className="dashboard-columns">
+    <section className="attention-panel panel"><div className="panel-heading"><div><h2>Needs attention</h2><p>Prioritized by urgency and due time.</p></div>{isDemo ? <span className="count-badge">{queue.length}</span> : null}</div>{!isDemo ? <div className="empty-state"><span><Check /></span><h3>No urgent work yet</h3><p>Operational tasks will appear here as booking workflows are introduced.</p></div> : searchedEmpty ? <div className="empty-state"><span><Search /></span><h3>No results for “{query}”</h3><p>Clear the search to return to the full attention queue.</p></div> : queue.length === 0 ? <div className="empty-state"><span><Check /></span><h3>You are all caught up</h3><p>Every demo task has been resolved. Head to Appointments for the rest of the day.</p></div> : <ul className="attention-list">{queue.map((item) => { const Icon = item.icon; return <li key={item.id} className={`attention-item status-${item.status.toLowerCase()}`}><div className="item-icon"><Icon /></div><div className="item-copy"><span className="status-pill">{item.status}</span><h3>{item.title}</h3><p>{item.detail}</p><div className="item-meta"><span><UserRound />{item.owner}</span><span><Clock3 />{item.timing}</span></div></div><button className="secondary-button" onClick={() => completeItem(item)}>{item.action}</button></li>; })}</ul>}</section>
+    <aside className="insight-rail"><section className="panel readiness"><div className="panel-heading"><div><h2>Today's readiness</h2><p>{isDemo ? "A demo view of today's schedule." : "Appointment readiness will appear here."}</p></div></div>{isDemo ? <><div className="readiness-chart"><div className="progress-ring" aria-label="9 of 12 appointments ready"><strong>9</strong><small>of 12 ready</small></div><div className="readiness-stats"><div><strong>12</strong><span>Appointments</span></div><div><strong className="green">9</strong><span>Ready</span></div><div><strong className="amber">3</strong><span>Need attention</span></div></div></div><button className="text-button" onClick={onAppointments}>View appointments <span aria-hidden="true">→</span></button></> : <div className="mini-empty">No readiness data yet.</div>}</section><section className="panel outcomes"><div className="panel-heading"><div><h2>Recent outcomes</h2><p>Verified demo events from the last 7 days.</p></div></div>{isDemo ? <div className="outcome-list"><div><span className="outcome-icon"><MessageSquareText /></span><p><strong>2 calls avoided</strong><small>Patient questions handled by message</small></p></div><div><span className="outcome-icon"><Sparkles /></span><p><strong>1 opening recovered</strong><small>Cancellation filled from the waitlist</small></p></div></div> : <div className="mini-empty">No outcomes recorded yet.</div>}</section>{isDemo ? <p className="demo-label"><Sparkles /> Synthetic preview data</p> : null}</aside>
+  </div></>;
+}
+
+function FutureView({ view, onReturn }: { view: Exclude<View, "today" | "settings">; onReturn: () => void }) {
+  const copy = { appointments: "Appointment workflows arrive in a later phase.", patients: "Patient workflows arrive in a later phase.", inbox: "Your clinic inbox will collect actionable patient replies." }[view];
+  return <div className="future-view panel"><span><Sparkles /></span><p className="eyebrow">Coming next</p><h1>{view[0].toUpperCase() + view.slice(1)}</h1><p>{copy}</p><button className="primary-button" onClick={onReturn}>Return to today</button></div>;
+}
+
+type ShellProps = { identity: Identity; clinic: Clinic; events: Audit[]; busy: boolean; notice: string; error: string; load: () => Promise<void>; selectClinic: (id: string) => Promise<void>; signOut: () => Promise<void>; submit: SettingsProps["submit"]; setClinic: (clinic: Clinic) => void; setEvents: (events: Audit[]) => void; setNotice: (notice: string) => void };
+function DashboardShell({ identity, clinic, events, busy, notice, error, load, selectClinic, signOut, submit, setClinic, setEvents, setNotice }: ShellProps) {
+  const [view, setView] = useState<View>("today"), [menuOpen, setMenuOpen] = useState(false), [profileOpen, setProfileOpen] = useState(false), [notificationsOpen, setNotificationsOpen] = useState(false), [query, setQuery] = useState(""), [completed, setCompleted] = useState<string[]>([]), [actionNotice, setActionNotice] = useState("");
+  const role = identity.clinics.find((item) => item.id === clinic.id)?.role, isDemo = import.meta.env.VITE_DENTALHQ_DEMO === "1", firstName = identity.user.name.split(" ")[0], clinicName = clinic.name;
+  function chooseView(next: View) { setView(next); setMenuOpen(false); setProfileOpen(false); }
+  function completeItem(item: QueueItem) { setCompleted((items) => [...items, item.id]); setActionNotice(`${item.title} moved out of the queue after “${item.action}.”`); }
+  return <main className="app-shell"><div className={`sidebar-scrim ${menuOpen ? "is-open" : ""}`} onClick={() => setMenuOpen(false)} /><aside className={`sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-top"><Brand /><button className="close-menu" aria-label="Close navigation" onClick={() => setMenuOpen(false)}><X /></button></div><label className="clinic-switcher"><span>Active clinic</span><select value={clinic.id} onChange={(event) => void selectClinic(event.target.value)} disabled={busy}>{identity.clinics.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><ChevronDown aria-hidden="true" /></label><nav aria-label="Clinic navigation"><ul>{navItems.map((item) => { const Icon = item.icon; return <li key={item.id}><button className={view === item.id ? "active" : ""} onClick={() => chooseView(item.id)}><Icon /><span>{item.label}</span>{item.badge ? <small>{item.badge}</small> : null}</button></li>; })}</ul></nav><div className="sidebar-help"><span><ShieldCheck /></span><p><strong>Clinic workspace</strong><small>Your access is scoped to {clinicName}.</small></p></div></aside>
+    <section className="workspace"><header className="topbar"><button className="menu-button" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu /></button><div className="mobile-context"><strong>{clinicName}</strong><small>{view}</small></div><label className="search-field"><Search /><span className="sr-only">Search today's work</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search today's work" /></label><div className="topbar-actions"><div className="popover-wrap"><button className="icon-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><Bell /><span className="notification-dot" /></button>{notificationsOpen ? <div className="popover notification-popover"><strong>Notifications</strong><p>One patient reply needs review today.</p></div> : null}</div><div className="popover-wrap"><button className="profile-button" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}><span>{firstName.slice(0,1)}</span><div><strong>{isDemo ? "Maya Kim" : identity.user.name}</strong><small>{role}</small></div><ChevronDown /></button>{profileOpen ? <div className="popover profile-popover"><p><strong>{identity.user.name}</strong><small>{identity.user.email}</small></p><button onClick={() => void signOut()}>Sign out</button></div> : null}</div></div></header>
+      <div className="workspace-content">{error ? <div className="alert error" role="alert"><span>{error}</span><button onClick={() => void load()}>Retry</button></div> : null}{actionNotice ? <div className="toast" role="status"><Check />{actionNotice}<button aria-label="Dismiss update" onClick={() => setActionNotice("")}><X /></button></div> : null}{view === "today" ? <TodayView isDemo={isDemo} completed={completed} query={query} completeItem={completeItem} firstName={firstName} clinicName={clinicName} onAppointments={() => setView("appointments")} /> : view === "settings" ? <SettingsView clinic={clinic} identity={identity} events={events} busy={busy} notice={notice} role={role} submit={submit} setClinic={setClinic} setEvents={setEvents} setNotice={setNotice} /> : <FutureView view={view} onReturn={() => setView("today")} />}</div>
+    </section></main>;
+}
+
 export default function App() {
-  if (window.location.pathname === "/booking")
-    return <main>This is booking</main>;
-  if (window.location.pathname !== "/")
-    return (
-      <main>
-        <h1>Page not found</h1>
-        <a href="/">Return to dashboard</a>
-      </main>
-    );
+  if (window.location.pathname === "/booking") return <main className="route-message"><Brand /><h1>This is booking</h1><a href="/">Return to dashboard</a></main>;
+  if (window.location.pathname !== "/") return <main className="route-message"><Brand /><h1>Page not found</h1><a href="/">Return to dashboard</a></main>;
   return <Dashboard />;
 }
+
 function Dashboard() {
-  const [identity, setIdentity] = useState<Identity | null>(null),
-    [clinic, setClinic] = useState<Clinic | null>(null);
-  const [events, setEvents] = useState<Audit[]>([]);
-  const [loading, setLoading] = useState(true),
-    [busy, setBusy] = useState(false);
-  const [error, setError] = useState(""),
-    [notice, setNotice] = useState("");
-  async function selectClinic(id: string) {
-    setClinic(null);
-    setEvents([]);
-    const [detail, audit] = await Promise.all([
-      api(`/clinics/${id}`),
-      api(`/clinics/${id}/audit`),
-    ]);
-    setClinic(clinicSchema.parse(detail));
-    setEvents(auditListSchema.parse(audit));
-  }
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const me = identitySchema.parse(await api("/me"));
-      setIdentity(me);
-      if (me.clinics[0]) await selectClinic(me.clinics[0].id);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
-        setIdentity(null);
-        setClinic(null);
-      } else
-        setError(e instanceof Error ? e.message : "Unable to load dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }
-  useEffect(() => {
-    void load();
-  }, []);
-  async function action(operation: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      await operation();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  function submit(
-    e: FormEvent<HTMLFormElement>,
-    operation: (f: FormData) => Promise<void>,
-  ) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    void action(() => operation(f));
-  }
-  const role = identity?.clinics.find((c) => c.id === clinic?.id)?.role;
-  return (
-    <main>
-      <header>
-        <a className="brand" href="/">
-          DentalHQ <span>Clinic dashboard</span>
-        </a>
-        {identity ? (
-          <button
-            disabled={busy}
-            onClick={() =>
-              void action(async () => {
-                await api("/auth/sign-out", "POST", {});
-                setIdentity(null);
-                setClinic(null);
-              })
-            }
-          >
-            Sign out
-          </button>
-        ) : null}
-      </header>
-      <p className="eyebrow">YOUR CLINIC WORKSPACE</p>
-      <h1>Ready for a better clinic day.</h1>
-      <p className="intro">
-        A secure home for your clinic team. Appointment workflows are coming
-        next.
-      </p>
-      {error ? (
-        <div className="error" role="alert">
-          {error} <button onClick={() => void load()}>Retry</button>
-        </div>
-      ) : null}
-      {notice ? (
-        <p role="status" className="notice">
-          {notice}
-        </p>
-      ) : null}
-      {loading ? (
-        <p role="status">Loading your workspace…</p>
-      ) : !identity ? (
-        <section className="card narrow">
-          <h2>Clinic sign in</h2>
-          <p>Use the account provisioned for your team.</p>
-          <form
-            onSubmit={(e) =>
-              submit(e, async (f) => {
-                await api("/auth/sign-in/email", "POST", {
-                  email: f.get("email"),
-                  password: f.get("password"),
-                });
-                await load();
-              })
-            }
-          >
-            <label>
-              Email
-              <input
-                name="email"
-                type="email"
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-          </form>
-        </section>
-      ) : identity.clinics.length === 0 ? (
-        <section className="card">
-          <h2>No clinic access yet</h2>
-          <p>
-            Ask your clinic owner or DentalHQ operator to assign your account.
-            Operator status alone does not grant clinic access.
-          </p>
-        </section>
-      ) : (
-        <>
-          <label className="selector">
-            Clinic
-            <select
-              disabled={busy}
-              value={clinic?.id ?? ""}
-              onChange={(e) => {
-                const id = e.target.value;
-                void action(() => selectClinic(id));
-              }}
-            >
-              <option value="" disabled>
-                Select clinic
-              </option>
-              {identity.clinics.map((c) => (
-                <option value={c.id} key={c.id}>
-                  {c.name} · {c.role}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!clinic ? (
-            <p role="status">
-              {busy
-                ? "Loading clinic…"
-                : "Select a clinic or retry loading your workspace."}
-            </p>
-          ) : (
-            <>
-              <div className="grid">
-                <section className="card">
-                  <h2>{clinic.name}</h2>
-                  <p>
-                    Your role: <strong>{role}</strong>
-                  </p>
-                  <p>
-                    No appointment tasks yet. Booking and patient-readiness
-                    flows belong to later phases.
-                  </p>
-                </section>
-                <section className="card" key={clinic.id}>
-                  <h2>Clinic configuration</h2>
-                  {role === "staff" ? (
-                    <p>Only owners and managers can change clinic settings.</p>
-                  ) : (
-                    <form
-                      onSubmit={(e) =>
-                        submit(e, async (f) => {
-                          setClinic(
-                            clinicSchema.parse(
-                              await api(`/clinics/${clinic.id}`, "PATCH", {
-                                timezone: f.get("timezone"),
-                                bookingEnabled:
-                                  f.get("bookingEnabled") === "on",
-                              }),
-                            ),
-                          );
-                          setEvents(
-                            auditListSchema.parse(
-                              await api(`/clinics/${clinic.id}/audit`),
-                            ),
-                          );
-                          setNotice("Settings saved and audited.");
-                        })
-                      }
-                    >
-                      <label>
-                        Timezone
-                        <input
-                          name="timezone"
-                          defaultValue={clinic.timezone}
-                          required
-                        />
-                      </label>
-                      <label className="checkbox">
-                        <input
-                          name="bookingEnabled"
-                          type="checkbox"
-                          defaultChecked={clinic.bookingEnabled}
-                        />
-                        Booking configuration flag
-                      </label>
-                      <p>
-                        This flag does not activate a patient booking workflow
-                        in Phase 1.
-                      </p>
-                      <button disabled={busy}>Save settings</button>
-                    </form>
-                  )}
-                </section>
-              </div>
-              {role === "owner" ? (
-                <section className="card">
-                  <h2>Team access</h2>
-                  <p>
-                    Assign a provisioned account to this clinic or change its
-                    manager/staff role.
-                  </p>
-                  <form
-                    onSubmit={(e) =>
-                      submit(e, async (f) => {
-                        await api(`/clinics/${clinic.id}/members`, "PUT", {
-                          email: f.get("email"),
-                          role: f.get("role"),
-                        });
-                        setNotice("Team access updated and audited.");
-                        setEvents(
-                          auditListSchema.parse(
-                            await api(`/clinics/${clinic.id}/audit`),
-                          ),
-                        );
-                      })
-                    }
-                  >
-                    <label>
-                      Account email
-                      <input name="email" type="email" required />
-                    </label>
-                    <label>
-                      Role
-                      <select name="role">
-                        <option value="staff">Staff</option>
-                        <option value="manager">Manager</option>
-                      </select>
-                    </label>
-                    <button disabled={busy}>Save team access</button>
-                  </form>
-                  <h3>Revoke team access</h3>
-                  <p>
-                    Remove a manager or staff member from this clinic. Other
-                    clinic memberships are unaffected.
-                  </p>
-                  <form
-                    onSubmit={(e) =>
-                      submit(e, async (f) => {
-                        await api(`/clinics/${clinic.id}/members`, "DELETE", {
-                          email: f.get("email"),
-                        });
-                        setNotice("Team access revoked and audited.");
-                        setEvents(
-                          auditListSchema.parse(
-                            await api(`/clinics/${clinic.id}/audit`),
-                          ),
-                        );
-                      })
-                    }
-                  >
-                    <label>
-                      Member email to remove
-                      <input name="email" type="email" required />
-                    </label>
-                    <button disabled={busy}>Revoke clinic access</button>
-                  </form>
-                </section>
-              ) : null}
-              <section className="card">
-                <h2>Audit history</h2>
-                {events.length === 0 ? (
-                  <p>No recorded changes yet.</p>
-                ) : (
-                  <ul>
-                    {events.map((event) => (
-                      <li key={event.id}>
-                        {event.action} ·{" "}
-                        {new Date(event.createdAt).toLocaleString()}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </>
-          )}
-        </>
-      )}
-      <footer>
-        Foundation release · Use synthetic data during development.
-      </footer>
-    </main>
-  );
+  const [identity, setIdentity] = useState<Identity | null>(null), [clinic, setClinic] = useState<Clinic | null>(null), [events, setEvents] = useState<Audit[]>([]), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  async function selectClinic(id: string) { setClinic(null); setEvents([]); const [detail, audit] = await Promise.all([api(`/clinics/${id}`), api(`/clinics/${id}/audit`)]); setClinic(clinicSchema.parse(detail)); setEvents(auditListSchema.parse(audit)); }
+  async function load() { setLoading(true); setError(""); try { const me = identitySchema.parse(await api("/me")); setIdentity(me); if (me.clinics[0]) await selectClinic(me.clinics[0].id); } catch (cause) { if (cause instanceof ApiError && cause.status === 401) { setIdentity(null); setClinic(null); } else setError(cause instanceof Error ? cause.message : "Unable to load dashboard."); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, []);
+  async function action(operation: () => Promise<void>) { setBusy(true); setError(""); setNotice(""); try { await operation(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Request failed."); } finally { setBusy(false); } }
+  function submit(event: FormEvent<HTMLFormElement>, operation: (form: FormData) => Promise<void>) { event.preventDefault(); const form = new FormData(event.currentTarget); void action(() => operation(form)); }
+  if (loading) return <LoadingScreen />;
+  if (!identity) return <LoginScreen busy={busy} error={error} onRetry={() => void load()} onSubmit={(event) => submit(event, async (form) => { await api("/auth/sign-in/email", "POST", { email: form.get("email"), password: form.get("password") }); await load(); })} />;
+  if (identity.clinics.length === 0) return <main className="access-page"><Brand /><section className="panel"><span><ShieldCheck /></span><h1>No clinic access yet</h1><p>Ask your clinic owner or DentalHQ administrator to assign your account. Operator status alone does not grant clinic access.</p><button className="secondary-button" onClick={() => void action(async () => { await api("/auth/sign-out", "POST", {}); setIdentity(null); })}>Sign out</button></section></main>;
+  if (!clinic) return <LoadingScreen />;
+  return <DashboardShell identity={identity} clinic={clinic} events={events} busy={busy} notice={notice} error={error} load={load} selectClinic={(id) => action(() => selectClinic(id))} signOut={() => action(async () => { await api("/auth/sign-out", "POST", {}); setIdentity(null); setClinic(null); })} submit={submit} setClinic={setClinic} setEvents={setEvents} setNotice={setNotice} />;
 }
