@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run workspace checks
+        run: pnpm check
+
+      - name: Build all workspaces
+        run: pnpm build
+
+      - name: Check peer dependencies
+        run: pnpm peers check
+
+  browser:
+    name: Browser flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      BETTER_AUTH_SECRET: ci-only-synthetic-auth-secret-000000000000
+      DEVELOPMENT_PASSWORD: ci-demo-password
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser tests against the synthetic stack
+        run: |
+          dev_log="${RUNNER_TEMP}/dentalhq-dev.log"
+          pnpm dev:demo > "$dev_log" 2>&1 &
+          dev_pid=$!
+          trap 'kill "$dev_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:3000/ \
+              && curl --silent --output /dev/null http://127.0.0.1:3001/ \
+              && curl --silent --output /dev/null http://127.0.0.1:3002/ \
+              && curl --silent --output /dev/null http://127.0.0.1:3003/api/me; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo "DentalHQ demo stack did not become ready."
+            tail -n 200 "$dev_log"
+            exit 1
+          fi
+
+          pnpm test:e2e
+
+      - name: Upload browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            ${{ runner.temp }}/dentalhq-dev.log
+          if-no-files-found: ignore
+          retention-days: 7
