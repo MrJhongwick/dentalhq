@@ -1,7 +1,10 @@
 import pg from "pg";
 import { databaseConnection } from "./database-config";
 
-for (const [key, pooled] of [["DATABASE_URL", true], ["DATABASE_URL_UNPOOLED", false]] as const) {
+for (const [key, pooled] of [
+  ["DATABASE_URL", true],
+  ["DATABASE_URL_UNPOOLED", false],
+] as const) {
   let client: pg.Client | undefined;
   try {
     const url = new URL(databaseConnection(process.env[key], pooled));
@@ -20,7 +23,9 @@ for (const [key, pooled] of [["DATABASE_URL", true], ["DATABASE_URL_UNPOOLED", f
     console.log(`${key}: connection verified (SELECT 1).`);
   } catch {
     // Driver errors can contain connection details. Keep public output fixed.
-    console.error(`${key}: verification failed. Check local credentials, TLS, pooling mode, and network access.`);
+    console.error(
+      `${key}: verification failed. Check local credentials, TLS, pooling mode, and network access.`,
+    );
     process.exitCode = 1;
   } finally {
     await client?.end().catch(() => {});
