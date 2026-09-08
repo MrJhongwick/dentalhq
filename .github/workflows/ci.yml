@@ -77,10 +77,10 @@ jobs:
 
           ready=0
           for attempt in {1..30}; do
-            if curl --silent --output /dev/null http://127.0.0.1:3000/ \
-              && curl --silent --output /dev/null http://127.0.0.1:3001/ \
-              && curl --silent --output /dev/null http://127.0.0.1:3002/ \
-              && curl --silent --output /dev/null http://127.0.0.1:3003/api/me; then
+            if curl --silent --output /dev/null http://localhost:3000/ \
+              && curl --silent --output /dev/null http://localhost:3001/ \
+              && curl --silent --output /dev/null http://localhost:3002/ \
+              && curl --silent --output /dev/null http://localhost:3003/api/me; then
               ready=1
               break
             fi
