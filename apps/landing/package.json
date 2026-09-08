@@ -4,9 +4,14 @@
   "type": "module",
   "scripts": {
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
-    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --port 3000"
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --port 3000",
+    "typecheck": "ASTRO_TELEMETRY_DISABLED=1 astro check"
   },
   "dependencies": {
     "astro": "latest"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
   }
 }

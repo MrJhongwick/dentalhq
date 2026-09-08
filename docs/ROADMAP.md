@@ -26,8 +26,22 @@ Scope:
 booking routes render their sample screens, and the configured development
 database connection is verified without exposing credentials.
 
-**Status:** Scaffold checks were previously verified. Product workflows and
-production readiness remain future work.
+**Status:** Complete for the local scaffold. Reverified on 2026-09-08 in the
+`chore/phase-0-completion` worktree:
+
+- `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm build` pass.
+- `pnpm db:check` verifies pooled and direct development connections with
+  `SELECT 1`, without printing credentials or changing data.
+- All four listeners belong to this worktree on ports 3000–3003. All five
+  documented routes return HTTP 200; Chrome renders their expected placeholder
+  text, including `/booking`, with a 390 × 844 browser window.
+- Root commands now include type checking, tests, and an explicit database
+  probe. The API loads its ignored environment file during local development.
+
+These checks establish the scaffold gate only. Loading, empty, authorization,
+and recovery workflows do not exist on these static sample pages; they remain
+gates for the phases that introduce those behaviors. No production deployment
+or real patient-data readiness is claimed.
 
 ## Phase 1 — Secure tenant and operational foundation
 
