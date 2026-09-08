@@ -7,15 +7,24 @@
   },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
-    "typecheck": "pnpm --recursive typecheck",
-    "test": "pnpm --recursive --if-present test",
+    "build:packages": "pnpm --filter @dentalhq/contracts --filter @dentalhq/db build",
+    "typecheck": "pnpm build:packages && pnpm --recursive typecheck",
+    "test": "pnpm build:packages && pnpm --recursive --if-present test",
     "check": "pnpm typecheck && pnpm test",
+    "test:e2e": "playwright test",
     "db:check": "pnpm --filter @dentalhq/api db:check",
-    "dev": "pnpm --parallel --recursive dev",
-    "dev:api": "pnpm --filter @dentalhq/api dev",
-    "dev:console": "pnpm --filter @dentalhq/console dev",
-    "dev:dashboard": "pnpm --filter @dentalhq/dashboard dev",
+    "db:generate": "pnpm --filter @dentalhq/db generate",
+    "db:migrate": "pnpm build:packages && pnpm --filter @dentalhq/api db:migrate",
+    "operator:bootstrap": "pnpm build:packages && pnpm --filter @dentalhq/api operator:bootstrap",
+    "dev:demo": "pnpm build:packages && DENTALHQ_DEMO=1 pnpm --parallel --stream --filter @dentalhq/landing --filter @dentalhq/dashboard --filter @dentalhq/console --filter @dentalhq/api dev",
+    "dev": "pnpm build:packages && pnpm --parallel --recursive dev",
+    "dev:api": "pnpm build:packages && pnpm --filter @dentalhq/api dev",
+    "dev:console": "pnpm --filter @dentalhq/contracts build && pnpm --filter @dentalhq/console dev",
+    "dev:dashboard": "pnpm --filter @dentalhq/contracts build && pnpm --filter @dentalhq/dashboard dev",
     "dev:landing": "pnpm --filter @dentalhq/landing dev"
   },
-  "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457"
+  "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
 }

@@ -62,6 +62,29 @@ cross-tenant access. An operator can onboard a test clinic through supported
 interfaces without direct database editing. Migrations work on a clean
 development database, and consequential changes have attributable audit records.
 
+**Status:** Complete for local synthetic development, verified on 2026-09-08
+in `feat/phase-1-tenant-foundation`.
+
+- Better Auth credential/session checks and server-enforced DentalHQ membership
+  roles protect the console and clinic API. Public sign-up is disabled.
+- Shared contracts and a server-only Drizzle schema are implemented. The initial
+  migration and its safe reapplication pass on fresh PGlite PostgreSQL.
+- Console onboarding creates accounts, clinics, owner memberships, and audit
+  records through supported interfaces. Clinic owners manage team access;
+  owners and managers manage settings. Support is reason-bound, read-only,
+  tenant-scoped, audited, expiring, and revocable.
+- All 12 configuration/API tests pass, including real signed sessions,
+  cross-tenant rejection, revocation, single-use bootstrap, and rate limiting.
+- All four Playwright browser scenarios pass: onboarding/settings/support,
+  staff permissions, loading/error/empty recovery, routing/keyboard access,
+  and mobile/desktop layouts. Workspace builds and type checks pass.
+
+This gate was exercised with synthetic data in an isolated local database.
+The migration has not been applied to Neon by this work; hosted setup is an
+explicit step documented in [FOUNDATION.md](FOUNDATION.md) and the README.
+Production authentication operations and pilot-readiness limitations remain
+listed in that guide. No later-phase patient workflow is claimed complete.
+
 ## Phase 2 — Booking-request MVP
 
 **Outcome:** A patient can find the right clinic service, submit a booking request,
