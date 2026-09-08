@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --format=esm --platform=neutral --outdir=dist",
-    "dev": "node --watch --import tsx src/dev.ts"
+    "dev": "node --env-file-if-exists=.env --watch --import tsx src/dev.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test scripts/database-config.test.ts",
+    "db:check": "node --env-file-if-exists=.env --import tsx scripts/check-db.ts"
   },
   "dependencies": {
     "@hono/node-server": "latest",
@@ -12,7 +15,9 @@
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "esbuild": "latest",
+    "pg": "^8.23.0",
     "tsx": "latest",
     "typescript": "latest"
   }

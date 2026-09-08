@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
-    "dev": "vite --port 3002 --strictPort"
+    "dev": "vite --port 3002 --strictPort",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

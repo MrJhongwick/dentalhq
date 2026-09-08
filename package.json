@@ -1,8 +1,16 @@
 {
   "name": "dentalhq",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0",
+    "pnpm": ">=11.0.0"
+  },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive --if-present test",
+    "check": "pnpm typecheck && pnpm test",
+    "db:check": "pnpm --filter @dentalhq/api db:check",
     "dev": "pnpm --parallel --recursive dev",
     "dev:api": "pnpm --filter @dentalhq/api dev",
     "dev:console": "pnpm --filter @dentalhq/console dev",
