@@ -16,7 +16,7 @@
     "db:generate": "pnpm --filter @dentalhq/db generate",
     "db:migrate": "pnpm build:packages && pnpm --filter @dentalhq/api db:migrate",
     "operator:bootstrap": "pnpm build:packages && pnpm --filter @dentalhq/api operator:bootstrap",
-    "dev:demo": "pnpm build:packages && DENTALHQ_DEMO=1 pnpm --parallel --stream --filter @dentalhq/landing --filter @dentalhq/dashboard --filter @dentalhq/console --filter @dentalhq/api dev",
+    "dev:demo": "pnpm build:packages && DENTALHQ_DEMO=1 VITE_DENTALHQ_DEMO=1 pnpm --parallel --stream --filter @dentalhq/landing --filter @dentalhq/dashboard --filter @dentalhq/console --filter @dentalhq/api dev",
     "dev": "pnpm build:packages && pnpm --parallel --recursive dev",
     "dev:api": "pnpm build:packages && pnpm --filter @dentalhq/api dev",
     "dev:console": "pnpm --filter @dentalhq/contracts build && pnpm --filter @dentalhq/console dev",

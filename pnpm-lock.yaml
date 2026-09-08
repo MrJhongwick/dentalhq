@@ -192,6 +192,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: latest
         version: 6.1.1(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.0))
+      lucide-react:
+        specifier: ^1.41.0
+        version: 1.41.0(react@19.2.8)
       react:
         specifier: latest
         version: 19.2.8
@@ -2144,6 +2147,11 @@ packages:
   lru-cache@11.5.2:
     resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
     engines: {node: 20 || >=22}
+
+  lucide-react@1.41.0:
+    resolution: {integrity: sha512-6lksP35l6KszDKUeRTi4LV7i6DEe0Yzl2ALJm9j4c5xEYN91GdW1xGsawGMOg2mgjF5GHBVX8pKX9kP+cWsP3Q==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   magic-string@1.2.3:
     resolution: {integrity: sha512-Bpb0W2TbLKOZ7vJnOUnVRGq3WL2p+ISV29M6hYPL1AFCpyKZpdr5ytiXoTSSxRVhg8YW7f65+6gbG8WG6PCa/g==}
@@ -4284,6 +4292,10 @@ snapshots:
       lightningcss-win32-x64-msvc: 1.33.0
 
   lru-cache@11.5.2: {}
+
+  lucide-react@1.41.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   magic-string@1.2.3:
     dependencies:
